@@ -163,6 +163,10 @@ func (ctx *Context) Function(fn Function) Value {
 	return Value{ctx: ctx, ref: C.JS_Call(ctx.ref, val.ref, ctx.Null().ref, C.int(len(args)), &args[0])}
 }
 
+func (ctx *Context) DupValue(value Value) Value {
+	return Value{ctx: ctx, ref: C.JS_DupValue(ctx.ref, value.ref)}
+}
+
 func (ctx *Context) JsFunction(this Value, fn Value, args []Value) Value {
 	if fn.IsFunction() {
 		var _argsptr *C.JSValue = nil
