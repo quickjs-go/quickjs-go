@@ -1,4 +1,4 @@
-package quickjs
+package quickjs-go
 
 import (
 	"errors"

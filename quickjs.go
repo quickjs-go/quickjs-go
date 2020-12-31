@@ -1,4 +1,4 @@
-package quickjs
+package quickjs-go
 
 import (
 	"errors"
@@ -16,6 +16,7 @@ import (
 
 #include <stdlib.h>
 #include "quickjs.h"
+#include "quickjs-libc.h"
 
 extern JSValue proxy(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
@@ -243,7 +244,7 @@ func (ctx *Context) Atom(v string) Atom {
 	return Atom{ctx: ctx, ref: C.JS_NewAtom(ctx.ref, ptr)}
 }
 
-func (ctx *Context) eval(code string) Value { return ctx.evalFile(code, "code") }
+func (ctx *Context) eval(code string) Value { return ctx.evalFile(code, "<code>") }
 
 func (ctx *Context) evalFile(code, filename string) Value {
 	codePtr := C.CString(code)
@@ -259,10 +260,21 @@ func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code,
 
 func (ctx *Context) EvalFile(code, filename string) (Value, error) {
 	val := ctx.evalFile(code, filename)
+
 	if val.IsException() {
 		return val, ctx.Exception()
 	}
 	return val, nil
+}
+
+func (ctx *Context) Call(this Value, fn Value, args []Value) (Value, error) {
+	val := ctx.JsFunction(this, fn, args)
+	if val.IsException() {
+		err := ctx.Exception()
+		return val, err
+	} else {
+		return val, nil
+	}
 }
 
 func (ctx *Context) Globals() Value {
@@ -318,6 +330,7 @@ func (ctx *Context) ThrowInternalError(format string, args ...interface{}) Value
 
 func (ctx *Context) Exception() error {
 	val := Value{ctx: ctx, ref: C.JS_GetException(ctx.ref)}
+
 	defer val.Free()
 	return val.Error()
 }
@@ -328,6 +341,22 @@ func (ctx *Context) Object() Value {
 
 func (ctx *Context) Array() Value {
 	return Value{ctx: ctx, ref: C.JS_NewArray(ctx.ref)}
+}
+
+func (ctx *Context) InitStdModule() {
+	stdPtr := C.CString("std")
+	defer C.free(unsafe.Pointer(stdPtr))
+	C.js_init_module_std(ctx.ref, stdPtr)
+}
+
+func (ctx *Context) InitOsModule() {
+	osPtr := C.CString("os")
+	defer C.free(unsafe.Pointer(osPtr))
+	C.js_init_module_os(ctx.ref, osPtr)
+}
+
+func (ctx *Context) StdHelper() {
+	C.js_std_add_helpers(ctx.ref, -1, nil)
 }
 
 type Atom struct {
@@ -449,17 +478,32 @@ func (v Value) SetFunction(name string, fn Function) {
 }
 
 type Error struct {
-	Cause string
-	Stack string
+	Cause      string
+	Message    string
+	FileName   string
+	LineNumber string
+	Stack      string
 }
 
-func (err Error) Error() string { return err.Cause }
+func (err Error) Error() string {
+	return fmt.Sprintf("cause:%s,message:%s,filename:%s,linenumber:%s,stack:%s", err.Cause, err.Message, err.FileName, err.LineNumber, err.Stack)
+}
 
 func (v Value) Error() error {
 	if !v.IsError() {
 		return nil
 	}
+
 	cause := v.String()
+
+	message := v.Get("message")
+	defer message.Free()
+
+	filename := v.Get("fileName")
+	defer filename.Free()
+
+	linenumber := v.Get("lineNumber")
+	defer linenumber.Free()
 
 	stack := v.Get("stack")
 	defer stack.Free()
@@ -467,7 +511,7 @@ func (v Value) Error() error {
 	if stack.IsUndefined() {
 		return &Error{Cause: cause}
 	}
-	return &Error{Cause: cause, Stack: stack.String()}
+	return &Error{Cause: cause, Message: message.String(), FileName: filename.String(), LineNumber: linenumber.String(), Stack: stack.String()}
 }
 
 func (v Value) IsNumber() bool        { return C.JS_IsNumber(v.ref) == 1 }

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/lithdew/quickjs"
 	"strings"
+
+	"github.com/quickjs-go/quickjs-go"
 )
 
 func check(err error) {
