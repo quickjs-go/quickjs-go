@@ -1,4 +1,4 @@
-package quickjs-go
+package quickjs
 
 import (
 	"errors"
@@ -485,9 +485,11 @@ type Error struct {
 	Stack      string
 }
 
-func (err Error) Error() string {
+func (err Error) String() string {
 	return fmt.Sprintf("cause:%s,message:%s,filename:%s,linenumber:%s,stack:%s", err.Cause, err.Message, err.FileName, err.LineNumber, err.Stack)
 }
+
+func (err Error) Error() string { return err.Cause }
 
 func (v Value) Error() error {
 	if !v.IsError() {
