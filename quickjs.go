@@ -12,7 +12,11 @@ import (
 
 /*
 #cgo CFLAGS: -I./3rdparty/include/quickjs
-#cgo LDFLAGS: -L${SRCDIR}/3rdparty/lib/quickjs -lquickjs
+#cgo linux,!android,386 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/linux/386 -lquickjs
+#cgo linux,!android,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/linux/x86_64 -lquickjs
+#cgo windows,386 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/windows/386 -lquickjs
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/windows/x86_64 -lquickjs
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/darwin/x86_64 -lquickjs
 
 #include <stdlib.h>
 #include "quickjs.h"
