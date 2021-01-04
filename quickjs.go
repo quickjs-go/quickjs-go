@@ -363,6 +363,10 @@ func (ctx *Context) StdHelper() {
 	C.js_std_add_helpers(ctx.ref, -1, nil)
 }
 
+func (ctx *Context) StdDumpError() {
+	C.js_std_dump_error(ctx.ref)
+}
+
 type Atom struct {
 	ctx *Context
 	ref C.JSAtom
