@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"sync"
-	"sync/atomic"
 	"unsafe"
 )
 
@@ -82,32 +80,19 @@ type funcEntry struct {
 	fn  Function
 }
 
-var funcPtrLen int64
-var funcPtrLock sync.Mutex
-var funcPtrStore = make(map[int64]funcEntry)
-var funcPtrClassID C.JSClassID
-
-func init() { C.JS_NewClassID(&funcPtrClassID) }
-
-func storeFuncPtr(v funcEntry) int64 {
-	id := atomic.AddInt64(&funcPtrLen, 1) - 1
-	funcPtrLock.Lock()
-	defer funcPtrLock.Unlock()
-	funcPtrStore[id] = v
-	return id
+func storeFuncPtr(v *funcEntry) ObjectId {
+	return NewObjectId(v)
 }
 
-func restoreFuncPtr(ptr int64) funcEntry {
-	funcPtrLock.Lock()
-	defer funcPtrLock.Unlock()
-	return funcPtrStore[ptr]
-}
+func restoreFuncPtr(id ObjectId) *funcEntry {
+	if v, ok := id.Get(); ok {
+		if _v, ok := v.(*funcEntry); ok {
+			return _v
+		}
+	}
 
-//func freeFuncPtr(ptr int64) {
-//	funcPtrLock.Lock()
-//	defer funcPtrLock.Unlock()
-//	delete(funcPtrStore, ptr)
-//}
+	return nil
+}
 
 //export proxy
 func proxy(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst) C.JSValue {
@@ -116,7 +101,7 @@ func proxy(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValue
 	id := C.int64_t(0)
 	C.JS_ToInt64(ctx, &id, refs[0])
 
-	entry := restoreFuncPtr(int64(id))
+	entry := restoreFuncPtr(ObjectId(id))
 
 	args := make([]Value, len(refs)-1)
 	for i := 0; i < len(args); i++ {
@@ -153,8 +138,8 @@ func (ctx *Context) Function(fn Function) Value {
 	}
 	defer val.Free()
 
-	funcPtr := storeFuncPtr(funcEntry{ctx: ctx, fn: fn})
-	funcPtrVal := ctx.Int64(funcPtr)
+	funcPtr := storeFuncPtr(&funcEntry{ctx: ctx, fn: fn})
+	funcPtrVal := ctx.Int64(int64(funcPtr))
 
 	if ctx.proxy == nil {
 		ctx.proxy = &Value{
@@ -228,6 +213,10 @@ func (ctx *Context) Uint32(v uint32) Value {
 	return Value{ctx: ctx, ref: C.JS_NewUint32(ctx.ref, C.uint32_t(v))}
 }
 
+func (ctx *Context) BigInt64(v uint64) Value {
+	return Value{ctx: ctx, ref: C.JS_NewBigInt64(ctx.ref, C.int64_t(v))}
+}
+
 func (ctx *Context) BigUint64(v uint64) Value {
 	return Value{ctx: ctx, ref: C.JS_NewBigUint64(ctx.ref, C.uint64_t(v))}
 }
@@ -260,7 +249,7 @@ func (ctx *Context) evalFile(code, filename string) Value {
 	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.int(0))}
 }
 
-func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code, "code") }
+func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code, "<code>") }
 
 func (ctx *Context) EvalFile(code, filename string) (Value, error) {
 	val := ctx.evalFile(code, filename)
