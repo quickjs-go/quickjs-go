@@ -5,17 +5,17 @@ import (
 )
 
 type JsInterface interface {
-	Register(runtime Runtime, context *Context) bool
-	Unregister(runtime Runtime, context *Context)
+	Register(runtime Runtime, context *Context, thread *JsThread) bool
+	Unregister(runtime Runtime, context *Context, thread *JsThread)
 }
 
 type JsThread struct {
 	*Runtime
 	*Context
-	Interface JsInterface
-	eval      chan jsEval
-	call      chan jsCall
-	close     chan struct{}
+	init  chan JsInterface
+	eval  chan jsEval
+	call  chan jsCall
+	close chan struct{}
 }
 
 type jsResult struct {
@@ -51,19 +51,21 @@ func NewJsThread(Interface JsInterface) *JsThread {
 		context.InitOsModule()
 		context.StdHelper()
 
+		init := make(chan JsInterface)
 		eval := make(chan jsEval)
 		call := make(chan jsCall)
 		close := make(chan struct{})
-		jsthread <- &JsThread{&runtime, context, Interface, eval, call, close}
-
-		if Interface.Register(runtime, context) {
-			defer Interface.Unregister(runtime, context)
-		} else {
-			return
-		}
+		thread := &JsThread{&runtime, context, init, eval, call, close}
+		jsthread <- thread
 
 		for {
 			select {
+			case _init, ok := <-init:
+				if ok {
+					if _init.Register(runtime, context, thread) {
+						defer _init.Unregister(runtime, context, thread)
+					}
+				}
 			case _eval, ok := <-eval:
 				if ok {
 					_result, _error := context.Eval(_eval.Code)
@@ -80,7 +82,9 @@ func NewJsThread(Interface JsInterface) *JsThread {
 		}
 	}()
 
-	return <-jsthread
+	temp := <-jsthread
+	temp.init <- Interface
+	return temp
 }
 
 func (j *JsThread) Close() {
