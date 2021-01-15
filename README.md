@@ -22,6 +22,7 @@ $ go get github.com/quickjs-go/quickjs-go
 3. You may access the stacktrace of an error returned by `Eval()` or `EvalFile()` or `Call()` by casting it to a `*quickjs.Error`.
 4. Make new copies of arguments should you want to return them in functions you created.
 5. Make sure to call `runtime.LockOSThread()` to ensure that QuickJS always operates in the exact same thread.
+6. Add JsInterface and JsThread for run javascript in golang goroutine
 
 ## Example
 
