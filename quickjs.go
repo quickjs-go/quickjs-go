@@ -19,6 +19,7 @@ import (
 #cgo android,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/Android/x86_64 -lquickjs
 #cgo android,arm LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/Android/armeabi-v7a -lquickjs
 #cgo android,arm64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/Android/arm64-v8a -lquickjs
+#cgo android LDFLAGS: -landroid -llog -lm
 
 #include <stdlib.h>
 #include "quickjs.h"
@@ -100,7 +101,7 @@ func restoreFuncPtr(id ObjectId) *funcEntry {
 
 //export proxy
 func proxy(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst) C.JSValue {
-	refs := (*[1 << 30]C.JSValueConst)(unsafe.Pointer(argv))[:argc:argc]
+	refs := (*[1 << unsafe.Sizeof(0)]C.JSValueConst)(unsafe.Pointer(argv))[:argc:argc]
 
 	id := C.int64_t(0)
 	C.JS_ToInt64(ctx, &id, refs[0])
@@ -554,7 +555,7 @@ func (v Value) PropertyNames() ([]PropertyEnum, error) {
 	}
 	defer C.js_free(v.ctx.ref, unsafe.Pointer(ptr))
 
-	entries := (*[1 << 30]C.JSPropertyEnum)(unsafe.Pointer(ptr))
+	entries := (*[1 << unsafe.Sizeof(0)]C.JSPropertyEnum)(unsafe.Pointer(ptr))
 
 	names := make([]PropertyEnum, uint32(size))
 
