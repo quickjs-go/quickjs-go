@@ -18,6 +18,7 @@ set(COMMON_FLAGS -D_GNU_SOURCE -DCONFIG_VERSION=\"${CONFIG_VERSION}\" -DCONFIG_C
 
 set(QUICKJS_LIB_SOURCES
         quickjs/quickjs.c
+        quickjs/quickjs-libc.c
         quickjs/libregexp.c
         quickjs/libunicode.c
         quickjs/libbf.c
@@ -25,7 +26,6 @@ set(QUICKJS_LIB_SOURCES
 )
 
 set(QJS_LIB_SOURCES
-        quickjs/quickjs-libc.c
         ${QUICKJS_LIB_SOURCES}
 )
 
