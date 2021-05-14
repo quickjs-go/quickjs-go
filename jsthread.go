@@ -26,6 +26,7 @@ type jsResult struct {
 type jsEval struct {
 	Code   string
 	Result chan jsResult
+	EvalType int
 }
 
 type jsCall struct {
@@ -47,9 +48,6 @@ func NewJsThread(Interface JsInterface) *JsThread {
 
 		runtime := NewRuntime()
 		context := runtime.NewContext()
-		context.InitStdModule()
-		context.InitOsModule()
-		context.StdHelper()
 
 		init := make(chan JsInterface)
 		eval := make(chan jsEval)
@@ -68,7 +66,7 @@ func NewJsThread(Interface JsInterface) *JsThread {
 				}
 			case _eval, ok := <-eval:
 				if ok {
-					_result, _error := context.Eval(_eval.Code)
+					_result, _error := context.Eval(_eval.Code,_eval.EvalType)
 					_eval.Result <- jsResult{_result, _error}
 				}
 			case _call, ok := <-call:
@@ -90,6 +88,10 @@ func NewJsThread(Interface JsInterface) *JsThread {
 func (j *JsThread) Close() {
 	close(j.close)
 
+	if j.Runtime != nil {
+		j.Runtime.StdFreeHandlers()
+	}
+
 	if j.Context != nil {
 		j.Context.Free()
 		j.Context = nil
@@ -101,8 +103,8 @@ func (j *JsThread) Close() {
 	}
 }
 
-func (j *JsThread) Eval(code string) (result Value, err error) {
-	temp := jsEval{code, make(chan jsResult)}
+func (j *JsThread) Eval(code string,evaltype int) (result Value, err error) {
+	temp := jsEval{code, make(chan jsResult),evaltype}
 	j.eval <- temp
 
 	select {

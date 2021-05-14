@@ -37,6 +37,47 @@ static JSValue ThrowTypeError(JSContext *ctx, const char *fmt) { return JS_Throw
 static JSValue ThrowReferenceError(JSContext *ctx, const char *fmt) { return JS_ThrowReferenceError(ctx, "%s", fmt); }
 static JSValue ThrowRangeError(JSContext *ctx, const char *fmt) { return JS_ThrowRangeError(ctx, "%s", fmt); }
 static JSValue ThrowInternalError(JSContext *ctx, const char *fmt) { return JS_ThrowInternalError(ctx, "%s", fmt); }
+
+static JSContext *JS_NewCustomContext(JSRuntime *rt)
+{
+    JSContext *ctx;
+    ctx = JS_NewContext(rt);
+    if (!ctx)
+        return NULL;
+#ifdef CONFIG_BIGNUM
+    if (bignum_ext) {
+        JS_AddIntrinsicBigFloat(ctx);
+        JS_AddIntrinsicBigDecimal(ctx);
+        JS_AddIntrinsicOperators(ctx);
+        JS_EnableBignumExt(ctx, TRUE);
+    }
+#endif
+    js_init_module_std(ctx, "std");
+    js_init_module_os(ctx, "os");
+    return ctx;
+}
+
+static JSRuntime* NewJsRuntime() {
+	JSRuntime *rt = JS_NewRuntime();
+	js_std_set_worker_new_context_func(JS_NewCustomContext);
+    js_std_init_handlers(rt);
+
+	return rt;
+}
+
+static JSContext* NewJsContext(JSRuntime *rt) {
+	js_std_set_worker_new_context_func(JS_NewCustomContext);
+    js_std_init_handlers(rt);
+    JSContext* ctx = JS_NewCustomContext(rt);
+
+	// loader for ES6 modules
+    JS_SetModuleLoaderFunc(rt, NULL, js_module_loader, NULL);
+
+	js_std_add_helpers(ctx, -1, NULL);
+	js_std_loop(ctx);
+
+	return ctx;
+}
 */
 import "C"
 
@@ -45,7 +86,7 @@ type Runtime struct {
 }
 
 func NewRuntime() Runtime {
-	rt := Runtime{ref: C.JS_NewRuntime()}
+	rt := Runtime{ref: C.NewJsRuntime()}
 	C.JS_SetCanBlock(rt.ref, C.int(1))
 	return rt
 }
@@ -54,13 +95,12 @@ func (r Runtime) RunGC() { C.JS_RunGC(r.ref) }
 
 func (r Runtime) Free() { C.JS_FreeRuntime(r.ref) }
 
-func (r Runtime) NewContext() *Context {
-	ref := C.JS_NewContext(r.ref)
+func (r Runtime) StdFreeHandlers() {
+	C.js_std_free_handlers(r.ref)
+}
 
-	C.JS_AddIntrinsicBigFloat(ref)
-	C.JS_AddIntrinsicBigDecimal(ref)
-	C.JS_AddIntrinsicOperators(ref)
-	C.JS_EnableBignumExt(ref, C.int(1))
+func (r Runtime) NewContext() *Context {
+	ref := C.NewJsContext(r.ref)
 
 	return &Context{ref: ref}
 }
@@ -243,22 +283,22 @@ func (ctx *Context) Atom(v string) Atom {
 	return Atom{ctx: ctx, ref: C.JS_NewAtom(ctx.ref, ptr)}
 }
 
-func (ctx *Context) eval(code string) Value { return ctx.evalFile(code, "<code>") }
+func (ctx *Context) eval(code string) Value { return ctx.evalFile(code,0, "<code>") }
 
-func (ctx *Context) evalFile(code, filename string) Value {
+func (ctx *Context) evalFile(code string,evaltype int, filename string) Value {
 	codePtr := C.CString(code)
 	defer C.free(unsafe.Pointer(codePtr))
 
 	filenamePtr := C.CString(filename)
 	defer C.free(unsafe.Pointer(filenamePtr))
 
-	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.int(0))}
+	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.int(evaltype))}
 }
 
-func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code, "<code>") }
+func (ctx *Context) Eval(code string,evaltype int) (Value, error) { return ctx.EvalFile(code,evaltype, "<code>") }
 
-func (ctx *Context) EvalFile(code, filename string) (Value, error) {
-	val := ctx.evalFile(code, filename)
+func (ctx *Context) EvalFile(code string, evaltype int, filename string) (Value, error) {
+	val := ctx.evalFile(code,evaltype, filename)
 
 	if val.IsException() {
 		return val, ctx.Exception()
