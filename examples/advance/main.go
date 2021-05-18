@@ -102,11 +102,11 @@ func main() {
 
 	result, err := js.Eval(`
 		import * as os from 'os'
-		os.sleep(2000)
 		console.log("run 2000")
 		test.AddCallback("key",function(info) {
+			os.sleep(2000)
 			return "in js callback:" + info
-		});
+		})
 	`, 1)
 
 	log.Println(result, err)

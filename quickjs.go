@@ -23,6 +23,7 @@ import (
 #cgo android LDFLAGS: -landroid -llog -lm
 
 #include <stdlib.h>
+#include <string.h>
 #include "quickjs.h"
 #include "quickjs-libc.h"
 
@@ -37,6 +38,69 @@ static JSValue ThrowTypeError(JSContext *ctx, const char *fmt) { return JS_Throw
 static JSValue ThrowReferenceError(JSContext *ctx, const char *fmt) { return JS_ThrowReferenceError(ctx, "%s", fmt); }
 static JSValue ThrowRangeError(JSContext *ctx, const char *fmt) { return JS_ThrowRangeError(ctx, "%s", fmt); }
 static JSValue ThrowInternalError(JSContext *ctx, const char *fmt) { return JS_ThrowInternalError(ctx, "%s", fmt); }
+
+int has_suffix(const char *str, const char *suffix);
+
+static int eval_buf(JSContext *ctx, const void *buf, int buf_len,
+                    const char *filename, int eval_flags)
+{
+    JSValue val;
+    int ret;
+
+    if ((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
+        //for the modules, we compile then run to be able to set import.meta
+        val = JS_Eval(ctx, buf, buf_len, filename,
+                      eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+        if (!JS_IsException(val)) {
+            js_module_set_import_meta(ctx, val, 1, 1);
+            val = JS_EvalFunction(ctx, val);
+        }
+    } else {
+        val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
+    }
+    if (JS_IsException(val)) {
+        js_std_dump_error(ctx);
+        ret = -1;
+    } else {
+        ret = 0;
+    }
+
+    JS_FreeValue(ctx, val);
+    return ret;
+}
+
+static int eval_file(JSContext *ctx, const char *filename, int module)
+{
+    uint8_t *buf;
+    int ret, eval_flags;
+    size_t buf_len;
+
+    buf = js_load_file(ctx, &buf_len, filename);
+    if (!buf) {
+        perror(filename);
+        exit(1);
+    }
+
+    if (module < 0) {
+        module = (has_suffix(filename, ".mjs") ||
+                  JS_DetectModule((const char *)buf, buf_len));
+    }
+    if (module)
+        eval_flags = JS_EVAL_TYPE_MODULE;
+    else
+        eval_flags = JS_EVAL_TYPE_GLOBAL;
+    ret = eval_buf(ctx, buf, buf_len, filename, eval_flags);
+    js_free(ctx, buf);
+    return ret;
+}
+
+static int SetBaseGlobal(JSContext *ctx) {
+	const char *str = "import * as std from 'std';\n"
+                "import * as os from 'os';\n"
+                "globalThis.std = std;\n"
+                "globalThis.os = os;\n";
+    return eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
+}
 
 static JSContext *JS_NewCustomContext(JSRuntime *rt)
 {
@@ -74,6 +138,7 @@ static JSContext* NewJsContext(JSRuntime *rt) {
     JS_SetModuleLoaderFunc(rt, NULL, js_module_loader, NULL);
 
 	js_std_add_helpers(ctx, -1, NULL);
+	SetBaseGlobal(ctx);
 	js_std_loop(ctx);
 
 	return ctx;
@@ -283,9 +348,9 @@ func (ctx *Context) Atom(v string) Atom {
 	return Atom{ctx: ctx, ref: C.JS_NewAtom(ctx.ref, ptr)}
 }
 
-func (ctx *Context) eval(code string) Value { return ctx.evalFile(code,0, "<code>") }
+func (ctx *Context) eval(code string) Value { return ctx.evalFile(code, 0, "<code>") }
 
-func (ctx *Context) evalFile(code string,evaltype int, filename string) Value {
+func (ctx *Context) evalFile(code string, evaltype int, filename string) Value {
 	codePtr := C.CString(code)
 	defer C.free(unsafe.Pointer(codePtr))
 
@@ -295,10 +360,12 @@ func (ctx *Context) evalFile(code string,evaltype int, filename string) Value {
 	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.int(evaltype))}
 }
 
-func (ctx *Context) Eval(code string,evaltype int) (Value, error) { return ctx.EvalFile(code,evaltype, "<code>") }
+func (ctx *Context) Eval(code string, evaltype int) (Value, error) {
+	return ctx.EvalFile(code, evaltype, "<code>")
+}
 
 func (ctx *Context) EvalFile(code string, evaltype int, filename string) (Value, error) {
-	val := ctx.evalFile(code,evaltype, filename)
+	val := ctx.evalFile(code, evaltype, filename)
 
 	if val.IsException() {
 		return val, ctx.Exception()
