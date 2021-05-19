@@ -107,7 +107,7 @@ func main() {
 			os.sleep(2000)
 			return "in js callback:" + info
 		})
-	`, 1)
+	`, quickjs.EVAL_MODULE)
 
 	log.Println(result, err)
 

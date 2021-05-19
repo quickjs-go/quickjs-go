@@ -108,14 +108,12 @@ static JSContext *JS_NewCustomContext(JSRuntime *rt)
     ctx = JS_NewContext(rt);
     if (!ctx)
         return NULL;
-#ifdef CONFIG_BIGNUM
-    if (bignum_ext) {
-        JS_AddIntrinsicBigFloat(ctx);
-        JS_AddIntrinsicBigDecimal(ctx);
-        JS_AddIntrinsicOperators(ctx);
-        JS_EnableBignumExt(ctx, TRUE);
-    }
-#endif
+
+	JS_AddIntrinsicBigFloat(ctx);
+	JS_AddIntrinsicBigDecimal(ctx);
+	JS_AddIntrinsicOperators(ctx);
+	JS_EnableBignumExt(ctx, 1);
+
     js_init_module_std(ctx, "std");
     js_init_module_os(ctx, "os");
     return ctx;
@@ -145,6 +143,13 @@ static JSContext* NewJsContext(JSRuntime *rt) {
 }
 */
 import "C"
+
+var (
+	EVAL_GLOBAL int = int(C.JS_EVAL_TYPE_GLOBAL)
+	EVAL_MODULE int = int(C.JS_EVAL_TYPE_MODULE)
+	EVAL_STRICT int = int(C.JS_EVAL_FLAG_STRICT)
+	EVAL_STRIP  int = int(C.JS_EVAL_FLAG_STRIP)
+)
 
 type Runtime struct {
 	ref *C.JSRuntime

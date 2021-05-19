@@ -23,7 +23,7 @@ func TestObject(t *testing.T) {
 	test.Set("C", context.String("String C"))
 	context.Globals().Set("test", test)
 
-	result, err := context.Eval(`Object.keys(test).map(key => test[key]).join(" ")`)
+	result, err := context.Eval(`Object.keys(test).map(key => test[key]).join(" ")`, EVAL_GLOBAL)
 	require.NoError(t, err)
 	defer result.Free()
 
@@ -47,7 +47,7 @@ func TestArray(t *testing.T) {
 
 	context.Globals().Set("test", test)
 
-	result, err := context.Eval(`test.map(v => v.toUpperCase())`)
+	result, err := context.Eval(`test.map(v => v.toUpperCase())`, EVAL_GLOBAL)
 	require.NoError(t, err)
 	defer result.Free()
 
@@ -61,7 +61,7 @@ func TestBadSyntax(t *testing.T) {
 	context := runtime.NewContext()
 	defer context.Free()
 
-	_, err := context.Eval(`"bad syntax'`)
+	_, err := context.Eval(`"bad syntax'`, EVAL_MODULE)
 	require.Error(t, err)
 }
 
@@ -78,7 +78,7 @@ func TestFunctionThrowError(t *testing.T) {
 		return ctx.ThrowError(expected)
 	})
 
-	_, actual := context.Eval("A()")
+	_, actual := context.Eval("A()", EVAL_GLOBAL)
 	require.Error(t, actual)
 	require.EqualValues(t, "Error: "+expected.Error(), actual.Error())
 }
@@ -113,14 +113,14 @@ func TestFunction(t *testing.T) {
 		return ctx.Float64(256)
 	})
 
-	result, err := context.Eval(`A("hello world!", 1, 2 ** 3, null)`)
+	result, err := context.Eval(`A("hello world!", 1, 2 ** 3, null)`, EVAL_GLOBAL)
 	require.NoError(t, err)
 	defer result.Free()
 
 	require.True(t, result.IsString() && result.String() == "A says hello")
 	<-A
 
-	result, err = context.Eval(`B()`)
+	result, err = context.Eval(`B()`, EVAL_GLOBAL)
 	require.NoError(t, err)
 	defer result.Free()
 
@@ -142,7 +142,7 @@ func TestJsFunction(t *testing.T) {
 		return context.JsFunction(context.Null(), args[0], []Value{context.String("args test")})
 	})
 
-	result, err := context.Eval(`Callback(function(args){return args})`)
+	result, err := context.Eval(`Callback(function(args){return args})`, EVAL_GLOBAL)
 	require.NoError(t, err)
 	defer result.Free()
 
@@ -172,7 +172,7 @@ func TestConcurrency(t *testing.T) {
 			defer context.Free()
 
 			for range req {
-				result, err := context.Eval(`new Date().getTime()`)
+				result, err := context.Eval(`new Date().getTime()`, EVAL_MODULE)
 				require.NoError(t, err)
 
 				res <- result.Int64()
