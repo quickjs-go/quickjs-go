@@ -112,16 +112,29 @@ static JSContext *JS_NewCustomContext(JSRuntime *rt)
 	JS_AddIntrinsicBigFloat(ctx);
 	JS_AddIntrinsicBigDecimal(ctx);
 	JS_AddIntrinsicOperators(ctx);
+
+	JS_AddIntrinsicDate(ctx);
+	JS_AddIntrinsicEval(ctx);
+	JS_AddIntrinsicProxy(ctx);
+	JS_AddIntrinsicMapSet(ctx);
+	JS_AddIntrinsicPromise(ctx);
+	JS_AddIntrinsicBigInt(ctx);
 	JS_EnableBignumExt(ctx, 1);
+
+	// JS_AddIntrinsicStringNormalize(ctx);
+	// JS_AddIntrinsicRegExp(ctx);
+	// JS_AddIntrinsicJSON(ctx);
+	// JS_AddIntrinsicBaseObjects(ctx);
+	// JS_AddIntrinsicTypedArrays(ctx);
 
     js_init_module_std(ctx, "std");
     js_init_module_os(ctx, "os");
+
     return ctx;
 }
 
 static JSRuntime* NewJsRuntime() {
 	JSRuntime *rt = JS_NewRuntime();
-	js_std_set_worker_new_context_func(JS_NewCustomContext);
     js_std_init_handlers(rt);
 
 	return rt;

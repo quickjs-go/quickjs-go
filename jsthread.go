@@ -45,6 +45,7 @@ func NewJsThread(Interface JsInterface) *JsThread {
 
 	go func() {
 		osruntime.LockOSThread()
+		defer osruntime.UnlockOSThread()
 
 		runtime := NewRuntime()
 		context := runtime.NewContext()
@@ -75,7 +76,7 @@ func NewJsThread(Interface JsInterface) *JsThread {
 					_call.Result <- jsResult{_result, _error}
 				}
 			case <-close:
-				break
+				return
 			}
 		}
 	}()
