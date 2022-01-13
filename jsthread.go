@@ -108,12 +108,10 @@ func (j *JsThread) Eval(code string, evaltype int) (result Value, err error) {
 	temp := jsEval{code, make(chan jsResult), evaltype}
 	j.eval <- temp
 
-	select {
-	case m, ok := <-temp.Result:
-		if ok {
-			result = m.Result
-			err = m.Error
-		}
+	m, ok := <-temp.Result
+	if ok {
+		result = m.Result
+		err = m.Error
 	}
 
 	return
@@ -123,12 +121,10 @@ func (j *JsThread) Call(obj, fn Value, args []Value) (result Value, err error) {
 	temp := jsCall{obj, fn, args, make(chan jsResult)}
 	j.call <- temp
 
-	select {
-	case m, ok := <-temp.Result:
-		if ok {
-			result = m.Result
-			err = m.Error
-		}
+	m, ok := <-temp.Result
+	if ok {
+		result = m.Result
+		err = m.Error
 	}
 
 	return
