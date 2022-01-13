@@ -114,14 +114,14 @@ static JSContext *JS_NewCustomContext(JSRuntime *rt)
 	JS_AddIntrinsicBigDecimal(ctx);
 	JS_AddIntrinsicOperators(ctx);
 
-	JS_AddIntrinsicDate(ctx);
+	JS_EnableBignumExt(ctx, 1);
 	JS_AddIntrinsicEval(ctx);
 	JS_AddIntrinsicProxy(ctx);
-	JS_AddIntrinsicMapSet(ctx);
-	JS_AddIntrinsicPromise(ctx);
-	JS_AddIntrinsicBigInt(ctx);
-	JS_EnableBignumExt(ctx, 1);
 
+	// JS_AddIntrinsicDate(ctx);
+	// JS_AddIntrinsicMapSet(ctx);
+	// JS_AddIntrinsicPromise(ctx);
+	// JS_AddIntrinsicBigInt(ctx);
 	// JS_AddIntrinsicStringNormalize(ctx);
 	// JS_AddIntrinsicRegExp(ctx);
 	// JS_AddIntrinsicJSON(ctx);
