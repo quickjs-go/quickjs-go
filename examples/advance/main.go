@@ -2,7 +2,11 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"sync"
+
+	stdruntime "runtime"
 
 	"github.com/quickjs-go/quickjs-go"
 )
@@ -93,6 +97,51 @@ func (d *Demo) Unregister(runtime quickjs.Runtime, context *quickjs.Context, thr
 
 }
 
+func Concurrency() {
+	n := 32
+	m := 10000
+
+	var wg sync.WaitGroup
+	wg.Add(n)
+
+	req := make(chan struct{}, n)
+	res := make(chan int64, m)
+
+	for i := 0; i < n; i++ {
+		go func() {
+			stdruntime.LockOSThread()
+			defer stdruntime.UnlockOSThread()
+
+			defer wg.Done()
+
+			runtime := quickjs.NewRuntime()
+			defer runtime.Free()
+
+			context := runtime.NewContext()
+			defer context.Free()
+
+			for range req {
+				result, err := context.Eval(`new Date().getTime()`, quickjs.EVAL_MODULE)
+				fmt.Println(err)
+				res <- result.Int64()
+
+				result.Free()
+			}
+		}()
+	}
+
+	for i := 0; i < m; i++ {
+		req <- struct{}{}
+	}
+	close(req)
+
+	wg.Wait()
+
+	for i := 0; i < m; i++ {
+		<-res
+	}
+}
+
 func main() {
 	d := &Demo{}
 	js := quickjs.NewJsThread(d)
@@ -116,6 +165,8 @@ func main() {
 	go func() {
 		d.Run("key", "i am in golang goroutine")
 	}()
+
+	Concurrency()
 
 	select {}
 }

@@ -3,8 +3,6 @@ package quickjs
 import (
 	"errors"
 	"fmt"
-	stdruntime "runtime"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -167,50 +165,4 @@ func TestMemoryLimit(t *testing.T) {
 		require.Equal(t, "InternalError: out of memory", err.Error())
 	}
 	result.Free()
-}
-
-func TestConcurrency(t *testing.T) {
-	n := 32
-	m := 10000
-
-	var wg sync.WaitGroup
-	wg.Add(n)
-
-	req := make(chan struct{}, n)
-	res := make(chan int64, m)
-
-	for i := 0; i < n; i++ {
-		go func() {
-			stdruntime.LockOSThread()
-			defer stdruntime.UnlockOSThread()
-
-			defer wg.Done()
-
-			runtime := NewRuntime()
-			defer runtime.Free()
-
-			context := runtime.NewContext()
-			defer context.Free()
-
-			for range req {
-				result, err := context.Eval(`new Date().getTime()`, EVAL_MODULE)
-				require.NoError(t, err)
-
-				res <- result.Int64()
-
-				result.Free()
-			}
-		}()
-	}
-
-	for i := 0; i < m; i++ {
-		req <- struct{}{}
-	}
-	close(req)
-
-	wg.Wait()
-
-	for i := 0; i < m; i++ {
-		<-res
-	}
 }
