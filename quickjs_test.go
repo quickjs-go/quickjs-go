@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -147,6 +148,25 @@ func TestJsFunction(t *testing.T) {
 	defer result.Free()
 
 	require.True(t, result.IsString() && result.String() == "args test")
+}
+
+func TestMemoryLimit(t *testing.T) {
+
+	runtime := NewRuntime()
+	defer runtime.Free()
+
+	const kB = 1 << 10
+	runtime.SetMemoryLimit(32 * kB)
+
+	context := runtime.NewContext()
+	defer context.Free()
+
+	result, err := context.Eval(`var array = []; while (true) { array.push(null) }`, EVAL_GLOBAL)
+
+	if assert.Error(t, err, "expected a memory limit violation") {
+		require.Equal(t, "InternalError: out of memory", err.Error())
+	}
+	result.Free()
 }
 
 func TestConcurrency(t *testing.T) {
