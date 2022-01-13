@@ -182,6 +182,7 @@ func TestConcurrency(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			stdruntime.LockOSThread()
+			defer stdruntime.UnlockOSThread()
 
 			defer wg.Done()
 
