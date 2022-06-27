@@ -15,7 +15,7 @@ import (
 #cgo linux,!android LDFLAGS: -lm -ldl -lpthread
 #cgo windows,386 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/windows/x86 -lquickjs
 #cgo windows,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/windows/x86_64 -lquickjs
-#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/darwin/x86_64 -lquickjs
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/darwin -lquickjs
 #cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/darwin/arm64 -lquickjs
 #cgo android,386 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/Android/x86 -lquickjs
 #cgo android,amd64 LDFLAGS: -L${SRCDIR}/3rdparty/libs/quickjs/Android/x86_64 -lquickjs
@@ -180,7 +180,7 @@ func (r Runtime) RunGC() { C.JS_RunGC(r.ref) }
 func (r Runtime) Free() { C.JS_FreeRuntime(r.ref) }
 
 func (r Runtime) SetMemoryLimit(limit uint32) {
-	C.JS_SetMemoryLimit(r.ref, C.ulong(limit))
+	C.JS_SetMemoryLimit(r.ref, C.ulong(C.uint(limit)))
 }
 
 func (r Runtime) StdFreeHandlers() {

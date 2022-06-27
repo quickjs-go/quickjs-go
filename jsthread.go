@@ -44,6 +44,7 @@ func NewJsThread(Interface JsInterface) *JsThread {
 	jsthread := make(chan *JsThread)
 
 	go func() {
+		// https://github.com/golang/go/issues/49848
 		osruntime.LockOSThread()
 		defer osruntime.UnlockOSThread()
 
