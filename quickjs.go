@@ -180,7 +180,7 @@ func (r Runtime) RunGC() { C.JS_RunGC(r.ref) }
 func (r Runtime) Free() { C.JS_FreeRuntime(r.ref) }
 
 func (r Runtime) SetMemoryLimit(limit uint32) {
-	C.JS_SetMemoryLimit(r.ref, C.ulong(C.uint(limit)))
+	C.JS_SetMemoryLimit(r.ref, C.size_t(limit))
 }
 
 func (r Runtime) StdFreeHandlers() {
