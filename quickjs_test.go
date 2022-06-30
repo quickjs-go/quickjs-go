@@ -166,3 +166,77 @@ func TestMemoryLimit(t *testing.T) {
 	}
 	result.Free()
 }
+
+func checkProperty(t *testing.T, ctx *Context, obj Value, prop Property, propName, propValue, code string) {
+	err := obj.DefineProperty(prop)
+	require.NoErrorf(t, err, "define property '%s'", propName)
+	result, err := ctx.Eval(fmt.Sprintf(code, propName, propValue), EVAL_GLOBAL)
+	assert.NoError(t, err)
+	defer result.Free()
+	if propName == "setter" {
+		return
+	}
+	assert.Truef(t, result.IsBool() && result.Bool(), "check property result '%s'", propName)
+}
+
+func TestDefineProperty(t *testing.T) {
+
+	runtime := NewRuntime()
+	defer runtime.Free()
+
+	context := runtime.NewContext()
+	defer context.Free()
+
+	// object
+	type object struct {
+		val string
+	}
+	goObj := object{}
+	jsObj := context.Object()
+	context.Globals().Set("obj", jsObj)
+
+	var (
+		prop      Property
+		propName  string
+		propValue = "ok"
+	)
+
+	// data
+	propName = "val"
+	value := context.String(propValue)
+	prop = Property{
+		Name:           propName,
+		IsConfigurable: PropertyOption("false"),
+		IsEnumerable:   PropertyOption("false"),
+		Value:          &value,
+	}
+	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s === '%s'")
+
+	// setter
+	propName = "setter"
+	setter := context.Function(func(ctx *Context, this Value, args []Value) Value {
+		val := args[0]
+		goObj.val = val.String()
+		return context.DupValue(val)
+	})
+	prop = Property{
+		Name:           propName,
+		IsConfigurable: PropertyOption("false"),
+		IsEnumerable:   PropertyOption("false"),
+		Setter:         &setter,
+	}
+	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s = '%s'")
+
+	// getter
+	propName = "getter"
+	getter := context.Function(func(ctx *Context, this Value, args []Value) Value {
+		return context.String(goObj.val)
+	})
+	prop = Property{
+		Name:           propName,
+		IsConfigurable: PropertyOption("false"),
+		IsEnumerable:   PropertyOption("false"),
+		Getter:         &getter,
+	}
+	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s === '%s'")
+}

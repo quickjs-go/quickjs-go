@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
 	"unsafe"
 )
 
@@ -698,4 +699,101 @@ func (v Value) PropertyNames() ([]PropertyEnum, error) {
 	}
 
 	return names, nil
+}
+
+func PropertyOption(s string) *bool {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return nil
+	}
+	return &b
+}
+
+type Property struct {
+	Name           string
+	IsConfigurable *bool
+	IsEnumerable   *bool
+
+	// data descriptor
+	Value      *Value
+	IsWritable *bool
+
+	// accessor descriptor
+	Getter *Value
+	Setter *Value
+}
+
+func (v Value) DefineProperty(prop Property) error {
+
+	// common
+	if prop.Name == "" {
+		return errors.New("prop must have a name")
+	}
+
+	// data or accessor descriptor ?
+	isData := prop.Value != nil || prop.IsWritable != nil
+	isAccessor := prop.Getter != nil || prop.Setter != nil
+	if isData && isAccessor {
+		return errors.New("a property can not be both data and accessor descriptor")
+	}
+	if !isData && !isAccessor {
+		// data descriptor by default
+		isData = true
+	}
+
+	// define property
+	var flags = 0
+	var value, getter, setter = C.JS_UNDEFINED, C.JS_UNDEFINED, C.JS_UNDEFINED
+
+	if prop.IsConfigurable != nil {
+		flags = flags | C.JS_PROP_HAS_CONFIGURABLE
+		if *prop.IsConfigurable {
+			flags = flags | C.JS_PROP_CONFIGURABLE
+		}
+	}
+	if prop.IsEnumerable != nil {
+		flags = flags | C.JS_PROP_HAS_ENUMERABLE
+		if *prop.IsEnumerable {
+			flags = flags | C.JS_PROP_ENUMERABLE
+		}
+	}
+
+	if isData {
+		if prop.Value != nil {
+			flags = flags | C.JS_PROP_HAS_VALUE
+			v := *prop.Value
+			value = v.ref
+		}
+		if prop.IsWritable != nil {
+			flags = flags | C.JS_PROP_HAS_WRITABLE
+			if *prop.IsWritable {
+				flags = flags | C.JS_PROP_WRITABLE
+			}
+		}
+	}
+	if isAccessor {
+		if prop.Getter != nil {
+			flags = flags | C.JS_PROP_HAS_GET
+			g := *prop.Getter
+			if !g.IsFunction() {
+				return errors.New("getter is not a function")
+			}
+			getter = g.ref
+		}
+		if prop.Setter != nil {
+			flags = flags | C.JS_PROP_HAS_SET
+			s := *prop.Setter
+			if !s.IsFunction() {
+				return errors.New("setter is not a function")
+			}
+			setter = s.ref
+		}
+	}
+
+	atom := v.ctx.Atom(prop.Name)
+	result := int(C.JS_DefineProperty(v.ctx.ref, v.ref, atom.ref, value, getter, setter, C.int(flags)))
+	if result < 0 {
+		return errors.New("error defining the property")
+	}
+	return nil
 }
