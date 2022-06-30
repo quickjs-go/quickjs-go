@@ -710,7 +710,6 @@ func PropertyOption(s string) *bool {
 }
 
 type PropertyDescriptor struct {
-	Name           string
 	IsConfigurable *bool
 	IsEnumerable   *bool
 
@@ -723,11 +722,11 @@ type PropertyDescriptor struct {
 	Setter *Value
 }
 
-func (v Value) DefineProperty(desc PropertyDescriptor) error {
+func (v Value) DefineProperty(name string, desc PropertyDescriptor) error {
 
 	// common
-	if desc.Name == "" {
-		return errors.New("desc must have a name")
+	if name == "" {
+		return errors.New("property must have a name")
 	}
 
 	// data or accessor descriptor ?
@@ -790,7 +789,7 @@ func (v Value) DefineProperty(desc PropertyDescriptor) error {
 		}
 	}
 
-	atom := v.ctx.Atom(desc.Name)
+	atom := v.ctx.Atom(name)
 	result := int(C.JS_DefineProperty(v.ctx.ref, v.ref, atom.ref, value, getter, setter, C.int(flags)))
 	if result < 0 {
 		return errors.New("error defining the property descriptor")

@@ -168,7 +168,7 @@ func TestMemoryLimit(t *testing.T) {
 }
 
 func checkProperty(t *testing.T, ctx *Context, obj Value, desc PropertyDescriptor, propName, propValue, code string) {
-	err := obj.DefineProperty(desc)
+	err := obj.DefineProperty(propName, desc)
 	require.NoErrorf(t, err, "define property '%s'", propName)
 	result, err := ctx.Eval(fmt.Sprintf(code, propName, propValue), EVAL_GLOBAL)
 	assert.NoError(t, err)
@@ -205,7 +205,6 @@ func TestDefineProperty(t *testing.T) {
 	propName = "val"
 	value := context.String(propValue)
 	prop = PropertyDescriptor{
-		Name:           propName,
 		IsConfigurable: PropertyOption("false"),
 		IsEnumerable:   PropertyOption("false"),
 		Value:          &value,
@@ -220,7 +219,6 @@ func TestDefineProperty(t *testing.T) {
 		return context.DupValue(val)
 	})
 	prop = PropertyDescriptor{
-		Name:           propName,
 		IsConfigurable: PropertyOption("false"),
 		IsEnumerable:   PropertyOption("false"),
 		Setter:         &setter,
@@ -233,7 +231,6 @@ func TestDefineProperty(t *testing.T) {
 		return context.String(goObj.val)
 	})
 	prop = PropertyDescriptor{
-		Name:           propName,
 		IsConfigurable: PropertyOption("false"),
 		IsEnumerable:   PropertyOption("false"),
 		Getter:         &getter,
