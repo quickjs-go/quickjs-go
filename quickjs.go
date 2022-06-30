@@ -709,7 +709,7 @@ func PropertyOption(s string) *bool {
 	return &b
 }
 
-type Property struct {
+type PropertyDescriptor struct {
 	Name           string
 	IsConfigurable *bool
 	IsEnumerable   *bool
@@ -723,66 +723,66 @@ type Property struct {
 	Setter *Value
 }
 
-func (v Value) DefineProperty(prop Property) error {
+func (v Value) DefineProperty(desc PropertyDescriptor) error {
 
 	// common
-	if prop.Name == "" {
-		return errors.New("prop must have a name")
+	if desc.Name == "" {
+		return errors.New("desc must have a name")
 	}
 
 	// data or accessor descriptor ?
-	isData := prop.Value != nil || prop.IsWritable != nil
-	isAccessor := prop.Getter != nil || prop.Setter != nil
+	isData := desc.Value != nil || desc.IsWritable != nil
+	isAccessor := desc.Getter != nil || desc.Setter != nil
 	if isData && isAccessor {
-		return errors.New("a property can not be both data and accessor descriptor")
+		return errors.New("a property descriptor can not be both data and accessor descriptor")
 	}
 	if !isData && !isAccessor {
 		// data descriptor by default
 		isData = true
 	}
 
-	// define property
+	// define descriptor
 	var flags = 0
 	var value, getter, setter = C.JS_UNDEFINED, C.JS_UNDEFINED, C.JS_UNDEFINED
 
-	if prop.IsConfigurable != nil {
+	if desc.IsConfigurable != nil {
 		flags = flags | C.JS_PROP_HAS_CONFIGURABLE
-		if *prop.IsConfigurable {
+		if *desc.IsConfigurable {
 			flags = flags | C.JS_PROP_CONFIGURABLE
 		}
 	}
-	if prop.IsEnumerable != nil {
+	if desc.IsEnumerable != nil {
 		flags = flags | C.JS_PROP_HAS_ENUMERABLE
-		if *prop.IsEnumerable {
+		if *desc.IsEnumerable {
 			flags = flags | C.JS_PROP_ENUMERABLE
 		}
 	}
 
 	if isData {
-		if prop.Value != nil {
+		if desc.Value != nil {
 			flags = flags | C.JS_PROP_HAS_VALUE
-			v := *prop.Value
+			v := *desc.Value
 			value = v.ref
 		}
-		if prop.IsWritable != nil {
+		if desc.IsWritable != nil {
 			flags = flags | C.JS_PROP_HAS_WRITABLE
-			if *prop.IsWritable {
+			if *desc.IsWritable {
 				flags = flags | C.JS_PROP_WRITABLE
 			}
 		}
 	}
 	if isAccessor {
-		if prop.Getter != nil {
+		if desc.Getter != nil {
 			flags = flags | C.JS_PROP_HAS_GET
-			g := *prop.Getter
+			g := *desc.Getter
 			if !g.IsFunction() {
 				return errors.New("getter is not a function")
 			}
 			getter = g.ref
 		}
-		if prop.Setter != nil {
+		if desc.Setter != nil {
 			flags = flags | C.JS_PROP_HAS_SET
-			s := *prop.Setter
+			s := *desc.Setter
 			if !s.IsFunction() {
 				return errors.New("setter is not a function")
 			}
@@ -790,10 +790,10 @@ func (v Value) DefineProperty(prop Property) error {
 		}
 	}
 
-	atom := v.ctx.Atom(prop.Name)
+	atom := v.ctx.Atom(desc.Name)
 	result := int(C.JS_DefineProperty(v.ctx.ref, v.ref, atom.ref, value, getter, setter, C.int(flags)))
 	if result < 0 {
-		return errors.New("error defining the property")
+		return errors.New("error defining the property descriptor")
 	}
 	return nil
 }
