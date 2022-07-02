@@ -205,8 +205,8 @@ func TestDefineProperty(t *testing.T) {
 	propName = "val"
 	value := context.String(propValue)
 	prop = PropertyDescriptor{
-		IsConfigurable: PropertyOption("false"),
-		IsEnumerable:   PropertyOption("false"),
+		IsConfigurable: PropertyOption(false),
+		IsEnumerable:   PropertyOption(false),
 		Value:          &value,
 	}
 	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s === '%s'")
@@ -219,8 +219,8 @@ func TestDefineProperty(t *testing.T) {
 		return context.DupValue(val)
 	})
 	prop = PropertyDescriptor{
-		IsConfigurable: PropertyOption("false"),
-		IsEnumerable:   PropertyOption("false"),
+		IsConfigurable: PropertyOption(false),
+		IsEnumerable:   PropertyOption(false),
 		Setter:         &setter,
 	}
 	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s = '%s'")
@@ -231,8 +231,8 @@ func TestDefineProperty(t *testing.T) {
 		return context.String(goObj.val)
 	})
 	prop = PropertyDescriptor{
-		IsConfigurable: PropertyOption("false"),
-		IsEnumerable:   PropertyOption("false"),
+		IsConfigurable: PropertyOption(false),
+		IsEnumerable:   PropertyOption(false),
 		Getter:         &getter,
 	}
 	checkProperty(t, context, jsObj, prop, propName, propValue, "obj.%s === '%s'")

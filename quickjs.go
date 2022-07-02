@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"strconv"
 	"unsafe"
 )
 
@@ -701,11 +700,7 @@ func (v Value) PropertyNames() ([]PropertyEnum, error) {
 	return names, nil
 }
 
-func PropertyOption(s string) *bool {
-	b, err := strconv.ParseBool(s)
-	if err != nil {
-		return nil
-	}
+func PropertyOption(b bool) *bool {
 	return &b
 }
 
