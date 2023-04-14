@@ -699,3 +699,95 @@ func (v Value) PropertyNames() ([]PropertyEnum, error) {
 
 	return names, nil
 }
+
+func PropertyOption(b bool) *bool {
+	return &b
+}
+
+type PropertyDescriptor struct {
+	IsConfigurable *bool
+	IsEnumerable   *bool
+
+	// data descriptor
+	Value      *Value
+	IsWritable *bool
+
+	// accessor descriptor
+	Getter *Value
+	Setter *Value
+}
+
+func (v Value) DefineProperty(name string, desc PropertyDescriptor) error {
+
+	// common
+	if name == "" {
+		return errors.New("property must have a name")
+	}
+
+	// data or accessor descriptor ?
+	isData := desc.Value != nil || desc.IsWritable != nil
+	isAccessor := desc.Getter != nil || desc.Setter != nil
+	if isData && isAccessor {
+		return errors.New("a property descriptor can not be both data and accessor descriptor")
+	}
+	if !isData && !isAccessor {
+		// data descriptor by default
+		isData = true
+	}
+
+	// define descriptor
+	var flags = 0
+	var value, getter, setter = C.JS_UNDEFINED, C.JS_UNDEFINED, C.JS_UNDEFINED
+
+	if desc.IsConfigurable != nil {
+		flags = flags | C.JS_PROP_HAS_CONFIGURABLE
+		if *desc.IsConfigurable {
+			flags = flags | C.JS_PROP_CONFIGURABLE
+		}
+	}
+	if desc.IsEnumerable != nil {
+		flags = flags | C.JS_PROP_HAS_ENUMERABLE
+		if *desc.IsEnumerable {
+			flags = flags | C.JS_PROP_ENUMERABLE
+		}
+	}
+
+	if isData {
+		if desc.Value != nil {
+			flags = flags | C.JS_PROP_HAS_VALUE
+			v := *desc.Value
+			value = v.ref
+		}
+		if desc.IsWritable != nil {
+			flags = flags | C.JS_PROP_HAS_WRITABLE
+			if *desc.IsWritable {
+				flags = flags | C.JS_PROP_WRITABLE
+			}
+		}
+	}
+	if isAccessor {
+		if desc.Getter != nil {
+			flags = flags | C.JS_PROP_HAS_GET
+			g := *desc.Getter
+			if !g.IsFunction() {
+				return errors.New("getter is not a function")
+			}
+			getter = g.ref
+		}
+		if desc.Setter != nil {
+			flags = flags | C.JS_PROP_HAS_SET
+			s := *desc.Setter
+			if !s.IsFunction() {
+				return errors.New("setter is not a function")
+			}
+			setter = s.ref
+		}
+	}
+
+	atom := v.ctx.Atom(name)
+	result := int(C.JS_DefineProperty(v.ctx.ref, v.ref, atom.ref, value, getter, setter, C.int(flags)))
+	if result < 0 {
+		return errors.New("error defining the property descriptor")
+	}
+	return nil
+}
