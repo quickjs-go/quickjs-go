@@ -154,7 +154,7 @@ func TestMemoryLimit(t *testing.T) {
 	defer runtime.Free()
 
 	const kB = 1 << 10
-	runtime.SetMemoryLimit(32 * kB)
+	runtime.SetMemoryLimit(128 * kB)
 
 	context := runtime.NewContext()
 	defer context.Free()
